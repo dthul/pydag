@@ -6,10 +6,24 @@ class IOput(object):
         self._node = node
         self._valid = False
         self._value = None
+        self._computation_running = False
 
     def _ensure_value(self):
-        if self._valid is False:
+        if self._valid is True:
+            # Nothing to do
+            return
+
+        if self._computation_running is True:
+            # This IOput's value is being computed at the moment but someone
+            # tries to access it already -> there must be a cyclic dependency somewhere
+            raise RuntimeError('Cycle detected')
+
+        try:
+            self._computation_running = True
             self._node.compute()
+        finally:
+            self._computation_running = False
+
         if self._valid is False:
             raise RuntimeError('Output value is invalid even after node computation has finished. Make sure that all outputs are set when a node is computed.')
 
@@ -66,9 +80,13 @@ class Outputs(object):
 
 
 class Node(object):
+    _inputs = ()
+    _outputs = ()
+
     def __init__(self):
-        self._inputs = Inputs()
-        self._outputs = Outputs()
+        self._inputs = Inputs(*self._inputs)
+        ioputs = {output_name: IOput(self) for output_name in self._outputs}
+        self._outputs = Outputs(**ioputs)
 
     # Subclasses must set the value of all their outputs when this method is called
     def compute(self):
@@ -83,35 +101,3 @@ class Node(object):
     @property
     def outputs(self):
         return self._outputs
-
-
-class Value(Node):
-    def __init__(self, value):
-        super().__init__()
-        value_output = IOput(self)
-        value_output.set_value(self, value)
-        self._outputs = Outputs(v=value_output)
-
-
-class Add(Node):
-    def __init__(self):
-        super().__init__()
-        self._inputs = Inputs('v1', 'v2')
-        value_output = IOput(self)
-        self._outputs = Outputs(v=value_output)
-
-    def compute(self):
-        super().compute()
-        value = self.inputs['v1'].value + self.inputs['v2'].value
-        self.outputs['v'].set_value(self, value)
-
-
-v1 = Value(5)
-v2 = Value(2)
-add = Add()
-add.inputs['v1'] = v1.outputs['v']
-add.inputs['v2'] = v2.outputs['v']
-
-# Everything is lazily computed so no computation happened up to this point
-# The access to the `value` property will kick off the computation
-print(add.outputs['v'].value)
