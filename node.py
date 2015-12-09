@@ -1,3 +1,5 @@
+import inspect
+
 # An input/output socket that (eventually) carries a value
 class IOput(object):
     def __init__(self, node):
@@ -27,18 +29,18 @@ class IOput(object):
         if self._valid is False:
             raise RuntimeError('Output value is invalid even after node computation has finished. Make sure that all outputs are set when a node is computed.')
 
-    # This function must only be called from the owning node.
-    # To reflect this, the caller must pass itself as an argument.
-    def set_value(self, caller, value):
-        if caller != self._node:
-            raise RuntimeError('The caller must be the owning node')
-        self._value = value
-        self._valid = True
-
     @property
     def value(self):
         self._ensure_value()
         return self._value
+
+    @value.setter
+    def value(self, value):
+        caller = inspect.currentframe().f_back.f_locals.get('self')
+        if caller is None or caller != self._node:
+            raise RuntimeError('The caller must be the owning node')
+        self._value = value
+        self._valid = True
 
 
 # Acts like a dict that only accepts pre-defined keys and the values must be IOputs

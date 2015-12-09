@@ -5,7 +5,7 @@ class Value(Node):
 
     def __init__(self, value):
         super().__init__()
-        self.outputs['v'].set_value(self, value)
+        self.outputs['v'].value = value
 
 
 class Add(Node):
@@ -15,7 +15,7 @@ class Add(Node):
     def compute(self):
         super().compute()
         result = self.inputs['v1'].value + self.inputs['v2'].value
-        self.outputs['v'].set_value(self, result)
+        self.outputs['v'].value = result
 
 
 v1 = Value(5)
